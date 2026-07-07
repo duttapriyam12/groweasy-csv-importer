@@ -10,7 +10,11 @@ const config: Config = {
     extend: {
       colors: {
         ink: "#12181B",
+        "ink-dark": "#E7ECEF",
         paper: "#F7F7F5",
+        "paper-dark": "#0B0F14",
+        surface: "#FFFFFF",
+        "surface-dark": "#12181F",
         accent: {
           DEFAULT: "#0E7C7B",
           light: "#14A3A1",
@@ -21,6 +25,7 @@ const config: Config = {
       fontFamily: {
         display: ["'Space Grotesk'", "sans-serif"],
         body: ["'Inter'", "sans-serif"],
+        mono: ["'JetBrains Mono'", "monospace"],
       },
     },
   },

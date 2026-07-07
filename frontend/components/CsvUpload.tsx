@@ -25,7 +25,6 @@ export default function CsvUpload({ onFileParsed, onError }: CsvUploadProps) {
 
       setIsParsing(true);
       try {
-        // Dynamic import keeps papaparse out of the initial bundle.
         const Papa = (await import("papaparse")).default;
         Papa.parse<Record<string, string>>(file, {
           header: true,
@@ -67,7 +66,10 @@ export default function CsvUpload({ onFileParsed, onError }: CsvUploadProps) {
       }}
       onClick={() => inputRef.current?.click()}
       className={`group cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition-colors
-        ${isDragging ? "border-accent bg-accent/5" : "border-ink/15 hover:border-accent/60 hover:bg-accent/[0.03]"}`}
+        ${isDragging
+          ? "border-accent bg-accent/5 dark:bg-accent/10"
+          : "border-ink/15 hover:border-accent/60 hover:bg-accent/[0.03] dark:border-ink-dark/15 dark:hover:border-accent-light/60 dark:hover:bg-accent/[0.06]"
+        }`}
     >
       <input
         ref={inputRef}
@@ -81,18 +83,20 @@ export default function CsvUpload({ onFileParsed, onError }: CsvUploadProps) {
         }}
       />
 
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent transition-transform group-hover:scale-105">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent transition-transform group-hover:scale-105 dark:bg-accent/15 dark:text-accent-light">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M12 16V4M12 4l-4 4M12 4l4 4" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
 
-      <p className="font-display text-lg font-semibold text-ink">
+      <p className="font-display text-lg font-semibold text-ink dark:text-ink-dark">
         {isParsing ? "Reading your file…" : "Drop your CSV file here"}
       </p>
-      <p className="mt-1 text-sm text-ink/50">or click to browse — any lead export format works</p>
-      <p className="mt-4 text-xs text-ink/40">Supported: .csv · Max 5MB</p>
+      <p className="mt-1 text-sm text-ink/50 dark:text-ink-dark/50">
+        or click to browse — any lead export format works
+      </p>
+      <p className="mt-4 text-xs text-ink/40 dark:text-ink-dark/40">Supported: .csv · Max 5MB</p>
     </div>
   );
 }

@@ -10,6 +10,9 @@
   background-color: #d4d4d0;
   border-radius: 999px;
 }
+.dark ::-webkit-scrollbar-thumb {
+  background-color: #2a333c;
+}
 ::-webkit-scrollbar-track {
   background: transparent;
 }
