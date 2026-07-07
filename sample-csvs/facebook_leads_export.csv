@@ -1,0 +1,7 @@
+full_name,email_address,phone_number,city_name,ad_campaign,created_time
+Rohit Sharma,rohit.sharma@gmail.com,9876501234,Bangalore,sarjapur_plots,2026-06-01 09:15:00
+Ananya Iyer,,9876502345,Chennai,eden_park,2026-06-01 10:00:00
+Karan Mehta,karan.mehta@yahoo.com;karan.alt@gmail.com,9876503456,Pune,,2026-06-02 11:30:00
+,noemail@nowhere.com,,Hyderabad,,2026-06-02 12:00:00
+Deepak Verma,deepak.verma@outlook.com,9876504567 / 9123456780,Mumbai,meridian_tower,2026-06-03 08:45:00
+Junk Row,,,,,
