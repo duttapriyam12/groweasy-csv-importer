@@ -3,8 +3,7 @@ import "dotenv/config";
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import uploadRouter from "./routes/upload.route";
-console.log("DEBUG - Model being used:", process.env.OPENAI_MODEL);
-console.log("DEBUG - Groq key present:", !!process.env.GROQ_API_KEY);
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
