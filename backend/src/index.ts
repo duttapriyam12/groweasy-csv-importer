@@ -1,4 +1,4 @@
-import "dotenv/config";   // ← must be the first line in the whole file
+import "dotenv/config";   
 
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
@@ -22,7 +22,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 
 app.use("/api", uploadRouter);
 
-// Centralized error handler (e.g. multer file-size errors land here too).
+
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const message = err?.message || "Internal server error.";
   res.status(400).json({ error: message });
