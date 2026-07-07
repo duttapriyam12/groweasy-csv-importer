@@ -32,12 +32,7 @@ function getClient(): OpenAI {
   return client;
 }
 
-/**
- * The system/instruction prompt. This is the single most important piece of
- * the assignment ("AI Prompt Engineering" is a top evaluation criterion), so
- * every rule from the spec is spelled out explicitly and unambiguously,
- * rather than left for the model to infer.
- */
+
 function buildPrompt(batch: RawCsvRecord[]): string {
   return `You are a data-mapping engine for a CRM system called GrowEasy.
 
@@ -164,7 +159,7 @@ function sanitizeCrmRecord(raw: any): CrmRecord | null {
     description: str(raw.description),
   };
 
- 
+
   if (!record.email && !record.mobile_without_country_code) return null;
 
   return record;
@@ -205,7 +200,7 @@ async function processBatch(
   try {
     responseText = await callOpenAiWithRetry(prompt);
   } catch (err) {
-   
+
     return {
       imported: [],
       skipped: batch.map((raw, i) => ({
@@ -265,17 +260,18 @@ async function processBatch(
   };
 }
 
-/**
- * Main entry point: takes all raw CSV records, splits into batches,
- * sends each batch to OpenAI, and merges the results.
- */
 export async function extractCrmRecords(
-  records: RawCsvRecord[]
+  records: RawCsvRecord[],
+  onBatchComplete?: () => void
 ): Promise<ImportResult> {
   const batches = chunkArray(records, BATCH_SIZE);
 
   const results = await Promise.all(
-    batches.map((batch, i) => processBatch(batch, i * BATCH_SIZE))
+    batches.map(async (batch, i) => {
+      const r = await processBatch(batch, i * BATCH_SIZE);
+      onBatchComplete?.();
+      return r;
+    })
   );
 
   const merged: ImportResult = {
@@ -293,4 +289,8 @@ export async function extractCrmRecords(
   merged.totalSkipped = merged.skipped.length;
 
   return merged;
+}
+
+export function getTotalBatches(records: RawCsvRecord[]): number {
+  return chunkArray(records, BATCH_SIZE).length;
 }
