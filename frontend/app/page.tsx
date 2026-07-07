@@ -4,7 +4,7 @@ import { useState } from "react";
 import CsvUpload from "@/components/CsvUpload";
 import PreviewTable from "@/components/PreviewTable";
 import ResultTable from "@/components/ResultTable";
-import { uploadCsvForImport, ImportResult } from "@/lib/api";
+import { startImport, pollJobStatus, ImportResult } from "@/lib/api";
 import ThemeToggle from "@/components/ThemeToggle";
 
 type Step = "upload" | "preview" | "processing" | "result";
@@ -16,12 +16,17 @@ export default function Home() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [uploadPercent, setUploadPercent] = useState(0);
+  const [batchProgress, setBatchProgress] = useState({ completed: 0, total: 0 });
+
   function reset() {
     setStep("upload");
     setFile(null);
     setPreviewRows([]);
     setResult(null);
     setError(null);
+    setUploadPercent(0);
+    setBatchProgress({ completed: 0, total: 0 });
   }
 
   function handleFileParsed(f: File, rows: Record<string, string>[]) {
@@ -35,10 +40,36 @@ export default function Home() {
     if (!file) return;
     setError(null);
     setStep("processing");
+    setUploadPercent(0);
+    setBatchProgress({ completed: 0, total: 0 });
+
     try {
-      const res = await uploadCsvForImport(file);
-      setResult(res);
-      setStep("result");
+      const { jobId, totalBatches } = await startImport(file, setUploadPercent);
+      setBatchProgress({ completed: 0, total: totalBatches });
+
+      const pollInterval = setInterval(async () => {
+        try {
+          const status = await pollJobStatus(jobId);
+          setBatchProgress({
+            completed: status.completedBatches,
+            total: status.totalBatches,
+          });
+
+          if (status.status === "done" && status.result) {
+            clearInterval(pollInterval);
+            setResult(status.result);
+            setStep("result");
+          } else if (status.status === "error") {
+            clearInterval(pollInterval);
+            setError(status.error || "Import failed.");
+            setStep("preview");
+          }
+        } catch (pollErr) {
+          clearInterval(pollInterval);
+          setError(pollErr instanceof Error ? pollErr.message : "Failed to check progress.");
+          setStep("preview");
+        }
+      }, 1200);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setStep("preview");
@@ -110,11 +141,28 @@ export default function Home() {
         <section className="flex flex-col items-center justify-center rounded-2xl border border-ink/10 bg-white py-20 dark:border-ink-dark/10 dark:bg-surface-dark">
           <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-accent/20 border-t-accent" />
           <p className="font-display font-semibold text-ink dark:text-ink-dark">
-            Mapping your leads with AI…
+            {uploadPercent < 100
+              ? `Uploading… ${uploadPercent}%`
+              : batchProgress.total > 0
+                ? batchProgress.completed === 0
+                  ? "Starting AI processing..."
+                  : `Mapping with AI — Batch ${batchProgress.completed} of ${batchProgress.total}`
+                : "Starting AI processing..."}
           </p>
           <p className="mt-1 text-sm text-ink/50 dark:text-ink-dark/50">
             This can take a few seconds for larger files, since rows are processed in batches.
           </p>
+
+          {batchProgress.total > 0 && (
+            <div className="mt-5 h-2 w-full max-w-sm overflow-hidden rounded-full bg-ink/10 dark:bg-white/10">
+              <div
+                className="h-full bg-accent transition-all duration-300 dark:bg-accent-light"
+                style={{
+                  width: `${(batchProgress.completed / batchProgress.total) * 100}%`,
+                }}
+              />
+            </div>
+          )}
         </section>
       )}
 
@@ -151,8 +199,8 @@ function StepIndicator({ step }: { step: Step }) {
         <div key={s.key} className="flex items-center gap-2">
           <div
             className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${i <= activeIndex
-                ? "bg-accent text-white"
-                : "bg-ink/10 text-ink/40 dark:bg-white/10 dark:text-ink-dark/40"
+              ? "bg-accent text-white"
+              : "bg-ink/10 text-ink/40 dark:bg-white/10 dark:text-ink-dark/40"
               }`}
           >
             {i + 1}

@@ -1,3 +1,5 @@
+import type { AxiosProgressEvent } from "axios";
+
 export interface CrmRecord {
   created_at: string;
   name: string;
@@ -28,29 +30,56 @@ export interface ImportResult {
   totalSkipped: number;
 }
 
+export interface JobStatusResponse {
+  status: "processing" | "done" | "error";
+  completedBatches: number;
+  totalBatches: number;
+  result: ImportResult | null;
+  error: string | null;
+}
+
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
 
-export async function uploadCsvForImport(file: File): Promise<ImportResult> {
+export async function startImport(
+  file: File,
+  onUploadProgress?: (percent: number) => void
+): Promise<{ jobId: string; totalBatches: number }> {
+  const axios = (await import("axios")).default;
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch(`${API_BASE}/api/upload`, {
-    method: "POST",
-    body: formData,
-  });
+  try {
+    const res = await axios.post(`${API_BASE}/api/upload/start`, formData, {
+      onUploadProgress: (e: AxiosProgressEvent) => {
+        if (e.total && onUploadProgress) {
+          onUploadProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      },
+    });
+    return res.data;
+  } catch (err: any) {
+    const message =
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to start import.";
+    throw new Error(message);
+  }
+}
 
+
+export async function pollJobStatus(jobId: string): Promise<JobStatusResponse> {
+  const res = await fetch(`${API_BASE}/api/upload/status/${jobId}`);
   if (!res.ok) {
-    let message = `Upload failed (status ${res.status}).`;
+    let message = `Failed to fetch job status (status ${res.status}).`;
     try {
       const body = await res.json();
       if (body?.error) message = body.error;
     } catch {
-      // ignore parse errors, use default message
+      // ignore
     }
     throw new Error(message);
   }
-
   return res.json();
 }
 
