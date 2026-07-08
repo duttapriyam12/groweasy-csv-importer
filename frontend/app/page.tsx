@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import CsvUpload from "@/components/CsvUpload";
 import PreviewTable from "@/components/PreviewTable";
 import ResultTable from "@/components/ResultTable";
@@ -19,6 +19,9 @@ export default function Home() {
   const [uploadPercent, setUploadPercent] = useState(0);
   const [batchProgress, setBatchProgress] = useState({ completed: 0, total: 0 });
 
+  const [processingPercent, setProcessingPercent] = useState(0);
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   function reset() {
     setStep("upload");
     setFile(null);
@@ -27,6 +30,7 @@ export default function Home() {
     setError(null);
     setUploadPercent(0);
     setBatchProgress({ completed: 0, total: 0 });
+    setProcessingPercent(0);
   }
 
   function handleFileParsed(f: File, rows: Record<string, string>[]) {
@@ -42,6 +46,16 @@ export default function Home() {
     setStep("processing");
     setUploadPercent(0);
     setBatchProgress({ completed: 0, total: 0 });
+    setProcessingPercent(0);
+
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    progressTimerRef.current = setInterval(() => {
+      setProcessingPercent((p) => {
+        if (p >= 92) return p;
+        const step = p < 50 ? 4 : p < 80 ? 2 : 0.5;
+        return Math.min(92, p + step);
+      });
+    }, 150);
 
     try {
       const { jobId, totalBatches } = await startImport(file, setUploadPercent);
@@ -57,20 +71,27 @@ export default function Home() {
 
           if (status.status === "done" && status.result) {
             clearInterval(pollInterval);
-            setResult(status.result);
-            setStep("result");
+            if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+            setProcessingPercent(100);
+            setTimeout(() => {
+              setResult(status.result);
+              setStep("result");
+            }, 400);
           } else if (status.status === "error") {
             clearInterval(pollInterval);
+            if (progressTimerRef.current) clearInterval(progressTimerRef.current);
             setError(status.error || "Import failed.");
             setStep("preview");
           }
         } catch (pollErr) {
           clearInterval(pollInterval);
+          if (progressTimerRef.current) clearInterval(progressTimerRef.current);
           setError(pollErr instanceof Error ? pollErr.message : "Failed to check progress.");
           setStep("preview");
         }
       }, 1200);
     } catch (err) {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setStep("preview");
     }
@@ -153,16 +174,14 @@ export default function Home() {
             This can take a few seconds for larger files, since rows are processed in batches.
           </p>
 
-          {batchProgress.total > 0 && (
-            <div className="mt-5 h-2 w-full max-w-sm overflow-hidden rounded-full bg-ink/10 dark:bg-white/10">
-              <div
-                className="h-full bg-accent transition-all duration-300 dark:bg-accent-light"
-                style={{
-                  width: `${(batchProgress.completed / batchProgress.total) * 100}%`,
-                }}
-              />
-            </div>
-          )}
+          <div className="mt-5 h-2 w-full max-w-sm overflow-hidden rounded-full bg-ink/10 dark:bg-white/10">
+            <div
+              className="h-full bg-accent transition-all duration-500 ease-out dark:bg-accent-light"
+              style={{
+                width: `${uploadPercent < 100 ? uploadPercent : processingPercent}%`,
+              }}
+            />
+          </div>
         </section>
       )}
 
