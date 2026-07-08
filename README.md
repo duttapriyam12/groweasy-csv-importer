@@ -147,5 +147,3 @@ Only `backend/src/services/aiExtractor.service.ts` needs to change — swap the 
 - **Batching + Promise.all**: batches are sent in parallel for speed; each batch fails independently (a failed batch is marked fully skipped with a reason, rather than crashing the whole import).
 - **Retry**: each Groq call retries up to 2 times with backoff before giving up on a batch.
 - **Server-side validation**: even though the prompt is strict, the backend re-validates every `crm_status` and `data_source`, enforces the "must have email or mobile" rule, and deterministically normalizes `created_at` (defaulting ambiguous DD-MM vs MM-DD dates to DD-MM-YYYY).
-
--Testing Purpose
