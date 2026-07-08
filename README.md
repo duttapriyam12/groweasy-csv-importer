@@ -2,9 +2,23 @@
 
 An AI-powered importer that takes a CSV in **any layout** (Facebook lead export, Google Ads export, a manually made spreadsheet, a real-estate CRM export...) and intelligently maps it to the fixed GrowEasy CRM schema, using an LLM (Groq's Llama 3.3 70B by default, via an OpenAI-compatible API) rather than hardcoded column-name matching.
 
+## Features
+
+- AI-powered CSV mapping using Groq Llama 3.3
+- Supports CSVs with arbitrary column layouts
+- Client-side CSV preview
+- Real-time upload progress
+- AI batch processing progress
+- Parallel batch processing
+- Retry with exponential backoff
+- Server-side validation
+- Responsive UI
+- Dark mode support
+- Sticky table headers with horizontal & vertical scrolling
+
 ## Architecture
 
-```
+```text
 groweasy-csv-importer/
 ├── backend/     Node.js + Express + TypeScript API
 │   └── src/
@@ -20,6 +34,20 @@ groweasy-csv-importer/
 └── sample-csvs/ Three differently-shaped test files (Facebook-style, Google Ads-style, messy manual sheet)
 ```
 
+### Frontend Workflow
+
+```
+Upload CSV
+    ↓
+Preview Raw CSV
+    ↓
+Confirm & Import
+    ↓
+AI Mapping
+    ↓
+Result (Imported + Skipped)
+```
+
 ### How the AI mapping works
 
 1. Frontend parses the CSV client-side (Papaparse) purely for **preview** — no AI call yet.
@@ -29,7 +57,7 @@ groweasy-csv-importer/
    - Gives the exact allowed enum values for `crm_status` and `data_source`
    - Encodes every rule from the assignment (multi-email/mobile handling, date format, skip condition, etc.)
    - Forces strict JSON output (`response_format: { type: "json_object" }`)
-4. The response is validated defensively on the server (enum values, required email/mobile check, deterministic date normalization) before being returned — the AI is never trusted blindly.
+4. All AI-generated output is validated and sanitized on the server before being returned to the client (enum values, required email/mobile check, deterministic date normalization).
 5. Frontend shows imported vs skipped records with counts.
 
 ## Setup
@@ -59,8 +87,9 @@ npm run dev
 ```
 Frontend runs at `http://localhost:3000`.
 
-### 3. Try it
-Open `http://localhost:3000`, upload any file from `/sample-csvs`, preview it, click **Confirm & Import with AI**, and see the mapped result.
+### 3. Run the Application
+
+Open `http://localhost:3000`, upload any CSV from the `sample-csvs` directory (or your own CSV), preview the data, click **Confirm & Import with AI**, and review the extracted CRM records.
 
 ## Environment Variables
 
@@ -79,6 +108,32 @@ MAX_FILE_SIZE_BYTES=5242880
 NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
 ```
 
+## API Endpoints
+
+### Health Check
+`GET /api/health`
+
+Returns server health status.
+
+### Start Import
+`POST /api/upload/start`
+
+Accepts a multipart/form-data request with a CSV file.
+
+Response
+
+```json
+{
+  "jobId": "...",
+  "totalBatches": 5
+}
+```
+
+### Job Status
+`GET /api/upload/status/:jobId`
+
+Returns processing status and final import result.
+
 ## Deployment (suggested, free-tier friendly)
 - **Backend** → Render or Railway (Node service). Set `GROQ_API_KEY`, `OPENAI_MODEL`, `BATCH_SIZE`, `FRONTEND_ORIGIN` (your deployed frontend URL) as env vars.
 - **Frontend** → Vercel. Set `NEXT_PUBLIC_API_BASE_URL` to your deployed backend URL.
@@ -91,4 +146,4 @@ Only `backend/src/services/aiExtractor.service.ts` needs to change — swap the 
 ## Notes on design choices
 - **Batching + Promise.all**: batches are sent in parallel for speed; each batch fails independently (a failed batch is marked fully skipped with a reason, rather than crashing the whole import).
 - **Retry**: each Groq call retries up to 2 times with backoff before giving up on a batch.
-- **Server-side validation**: even though the prompt is strict, the backend re-validates every `crm_status`/`data_source` against the allowed list, re-checks the "must have email or mobile" rule, and deterministically re-normalizes `created_at` (defaulting ambiguous DD-MM vs MM-DD dates to DD-MM-YYYY, the Indian convention) — the AI's output is never trusted as-is.
+- **Server-side validation**: even though the prompt is strict, the backend re-validates every `crm_status` and `data_source`, enforces the "must have email or mobile" rule, and deterministically normalizes `created_at` (defaulting ambiguous DD-MM vs MM-DD dates to DD-MM-YYYY).
